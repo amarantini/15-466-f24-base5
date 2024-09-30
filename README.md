@@ -1,8 +1,8 @@
-# (TODO: your game's title)
+# Survive the Flood
 
-Author: (TODO: your name)
+Author: Qiru Hu
 
-Design: (TODO: In two sentences or fewer, describe what is new and interesting about your game.)
+Design: This game depicts a climber trying to escape the ever rising flood by climbing on top of a cliff. The climber must carefully choose his routes.
 
 Screen Shot:
 
@@ -10,9 +10,10 @@ Screen Shot:
 
 How To Play:
 
-(TODO: describe the controls and (if needed) goals/strategy.)
+- Move with WASD
+- The goal is to get to the top of the cliff before being submerged by the rising sea level.
 
-Sources: (TODO: list a source URL for any assets you did not create yourself. Make sure you have a license for the asset.)
+Sources: 
 
 This game was built with [NEST](NEST.md).
 

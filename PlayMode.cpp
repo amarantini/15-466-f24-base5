@@ -13,23 +13,47 @@
 
 #include <random>
 
-GLuint phonebank_meshes_for_lit_color_texture_program = 0;
-Load< MeshBuffer > phonebank_meshes(LoadTagDefault, []() -> MeshBuffer const * {
-	MeshBuffer const *ret = new MeshBuffer(data_path("phone-bank.pnct"));
-	phonebank_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
+// GLuint phonebank_meshes_for_lit_color_texture_program = 0;
+// Load< MeshBuffer > phonebank_meshes(LoadTagDefault, []() -> MeshBuffer const * {
+// 	MeshBuffer const *ret = new MeshBuffer(data_path("phone-bank.pnct"));
+// 	phonebank_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
+// 	return ret;
+// });
+
+// Load< Scene > phonebank_scene(LoadTagDefault, []() -> Scene const * {
+// 	return new Scene(data_path("phone-bank.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
+// 		Mesh const &mesh = phonebank_meshes->lookup(mesh_name);
+
+// 		scene.drawables.emplace_back(transform);
+// 		Scene::Drawable &drawable = scene.drawables.back();
+
+// 		drawable.pipeline = lit_color_texture_program_pipeline;
+
+// 		drawable.pipeline.vao = phonebank_meshes_for_lit_color_texture_program;
+// 		drawable.pipeline.type = mesh.type;
+// 		drawable.pipeline.start = mesh.start;
+// 		drawable.pipeline.count = mesh.count;
+
+// 	});
+// });
+
+GLuint flood_meshes_for_lit_color_texture_program = 0;
+Load< MeshBuffer > flood_meshes(LoadTagDefault, []() -> MeshBuffer const * {
+	MeshBuffer const *ret = new MeshBuffer(data_path("flood.pnct"));
+	flood_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
 	return ret;
 });
 
-Load< Scene > phonebank_scene(LoadTagDefault, []() -> Scene const * {
-	return new Scene(data_path("phone-bank.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
-		Mesh const &mesh = phonebank_meshes->lookup(mesh_name);
+Load< Scene > flood_scene(LoadTagDefault, []() -> Scene const * {
+	return new Scene(data_path("flood.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
+		Mesh const &mesh = flood_meshes->lookup(mesh_name);
 
 		scene.drawables.emplace_back(transform);
 		Scene::Drawable &drawable = scene.drawables.back();
 
 		drawable.pipeline = lit_color_texture_program_pipeline;
 
-		drawable.pipeline.vao = phonebank_meshes_for_lit_color_texture_program;
+		drawable.pipeline.vao = flood_meshes_for_lit_color_texture_program;
 		drawable.pipeline.type = mesh.type;
 		drawable.pipeline.start = mesh.start;
 		drawable.pipeline.count = mesh.count;
@@ -38,34 +62,45 @@ Load< Scene > phonebank_scene(LoadTagDefault, []() -> Scene const * {
 });
 
 WalkMesh const *walkmesh = nullptr;
-Load< WalkMeshes > phonebank_walkmeshes(LoadTagDefault, []() -> WalkMeshes const * {
-	WalkMeshes *ret = new WalkMeshes(data_path("phone-bank.w"));
-	walkmesh = &ret->lookup("WalkMesh");
+Load< WalkMeshes > flood_walkmeshes(LoadTagDefault, []() -> WalkMeshes const * {
+	WalkMeshes *ret = new WalkMeshes(data_path("flood.w"));
+	walkmesh = &ret->lookup("Walkmesh");
 	return ret;
 });
 
-PlayMode::PlayMode() : scene(*phonebank_scene) {
+PlayMode::PlayMode() : scene(*flood_scene) {
 	//create a player transform:
-	scene.transforms.emplace_back();
-	player.transform = &scene.transforms.back();
+	// scene.transforms.emplace_back();
+	// player.transform = &scene.transforms.back();
 
-	//create a player camera attached to a child of the player transform:
-	scene.transforms.emplace_back();
-	scene.cameras.emplace_back(&scene.transforms.back());
-	player.camera = &scene.cameras.back();
-	player.camera->fovy = glm::radians(60.0f);
-	player.camera->near = 0.01f;
-	player.camera->transform->parent = player.transform;
+	// //create a player camera attached to a child of the player transform:
+	// scene.transforms.emplace_back();
+	// scene.cameras.emplace_back(&scene.transforms.back());
+	// player.camera = &scene.cameras.back();
+	// player.camera->fovy = glm::radians(60.0f);
+	// player.camera->near = 0.01f;
+	// player.camera->transform->parent = player.transform;
 
-	//player's eyes are 1.8 units above the ground:
-	player.camera->transform->position = glm::vec3(0.0f, 0.0f, 1.8f);
+	// //player's eyes are 1.8 units above the ground:
+	// player.camera->transform->position = glm::vec3(0.0f, 0.0f, 1.8f);
 
-	//rotate camera facing direction (-z) to player facing direction (+y):
-	player.camera->transform->rotation = glm::angleAxis(glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	// //rotate camera facing direction (-z) to player facing direction (+y):
+	// player.camera->transform->rotation = glm::angleAxis(glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+
+	
+	for (auto &transform : scene.transforms) {
+		if (transform.name == "Player") player.transform = &transform;
+		else if (transform.name == "Sea") sea_level = &transform;
+	}
+	if (player.transform == nullptr) throw std::runtime_error("Player not found.");
+	if(sea_level == nullptr) throw std::runtime_error("Sea not found.");
+
+	//get pointer to camera for convenience:
+	if (scene.cameras.size() != 1) throw std::runtime_error("Expecting scene to have exactly one camera, but it has " + std::to_string(scene.cameras.size()));
+	player.camera = &scene.cameras.front();
 
 	//start player walking at nearest walk point:
 	player.at = walkmesh->nearest_walk_point(player.transform->position);
-
 }
 
 PlayMode::~PlayMode() {
@@ -108,44 +143,64 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			down.pressed = false;
 			return true;
 		}
-	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
-		if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
-			SDL_SetRelativeMouseMode(SDL_TRUE);
-			return true;
-		}
-	} else if (evt.type == SDL_MOUSEMOTION) {
-		if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
-			glm::vec2 motion = glm::vec2(
-				evt.motion.xrel / float(window_size.y),
-				-evt.motion.yrel / float(window_size.y)
-			);
-			glm::vec3 upDir = walkmesh->to_world_smooth_normal(player.at);
-			player.transform->rotation = glm::angleAxis(-motion.x * player.camera->fovy, upDir) * player.transform->rotation;
+	} 
+	// else if (evt.type == SDL_MOUSEBUTTONDOWN) {
+	// 	if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
+	// 		SDL_SetRelativeMouseMode(SDL_TRUE);
+	// 		return true;
+	// 	}
+	// } else if (evt.type == SDL_MOUSEMOTION) {
+	// 	if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
+	// 		glm::vec2 motion = glm::vec2(
+	// 			evt.motion.xrel / float(window_size.y),
+	// 			-evt.motion.yrel / float(window_size.y)
+	// 		);
+	// 		glm::vec3 upDir = walkmesh->to_world_smooth_normal(player.at);
+	// 		player.transform->rotation = glm::angleAxis(-motion.x * player.camera->fovy, upDir) * player.transform->rotation;
 
-			float pitch = glm::pitch(player.camera->transform->rotation);
-			pitch += motion.y * player.camera->fovy;
-			//camera looks down -z (basically at the player's feet) when pitch is at zero.
-			pitch = std::min(pitch, 0.95f * 3.1415926f);
-			pitch = std::max(pitch, 0.05f * 3.1415926f);
-			player.camera->transform->rotation = glm::angleAxis(pitch, glm::vec3(1.0f, 0.0f, 0.0f));
+	// 		float pitch = glm::pitch(player.camera->transform->rotation);
+	// 		pitch += motion.y * player.camera->fovy;
+	// 		//camera looks down -z (basically at the player's feet) when pitch is at zero.
+	// 		pitch = std::min(pitch, 0.95f * 3.1415926f);
+	// 		pitch = std::max(pitch, 0.05f * 3.1415926f);
+	// 		player.camera->transform->rotation = glm::angleAxis(pitch, glm::vec3(1.0f, 0.0f, 0.0f));
 
-			return true;
-		}
-	}
+	// 		return true;
+	// 	}
+	// }
 
 	return false;
 }
 
 void PlayMode::update(float elapsed) {
+	if(game_over) return;
+	//check if player is underwater:
+	if (player.transform->position.x+1.0f < sea_level->position.x) {
+		//player is underwater:
+		std::cout << "Player is underwater, game over" << std::endl;
+		std::cout << "Player position: " << player.transform->position.x << std::endl;
+		std::cout << "Sea level: " << sea_level->position.x << std::endl;
+		game_over = true;
+		return;
+	} 
+
+	//check if player is on the cliff:
+	if (player.transform->position.x >= cliff_top) {
+		//player is on the cliff:
+		std::cout << "Player is on the cliff top, game over" << std::endl;
+		game_over = true;
+		return;
+	}
+
 	//player walking:
 	{
 		//combine inputs into a move:
 		constexpr float PlayerSpeed = 3.0f;
 		glm::vec2 move = glm::vec2(0.0f);
-		if (left.pressed && !right.pressed) move.x =-1.0f;
-		if (!left.pressed && right.pressed) move.x = 1.0f;
-		if (down.pressed && !up.pressed) move.y =-1.0f;
-		if (!down.pressed && up.pressed) move.y = 1.0f;
+		if (left.pressed && !right.pressed) move.x = 1.0f;
+		if (!left.pressed && right.pressed) move.x = -1.0f;
+		if (down.pressed && !up.pressed) move.y = 1.0f;
+		if (!down.pressed && up.pressed) move.y = -1.0f;
 
 		//make it so that moving diagonally doesn't go faster:
 		if (move != glm::vec2(0.0f)) move = glm::normalize(move) * PlayerSpeed * elapsed;
@@ -161,6 +216,7 @@ void PlayMode::update(float elapsed) {
 			float time;
 			walkmesh->walk_in_triangle(player.at, remain, &end, &time);
 			player.at = end;
+			std::cout<<"end: "<<end.indices.x<<" "<<end.indices.y<<" "<<end.indices.z<<std::endl;
 			if (time == 1.0f) {
 				//finished within triangle:
 				remain = glm::vec3(0.0f);
@@ -201,6 +257,7 @@ void PlayMode::update(float elapsed) {
 		}
 
 		//update player's position to respect walking:
+		// glm::vec3 old_position = player.transform->position;
 		player.transform->position = walkmesh->to_world_point(player.at);
 
 		{ //update player's rotation to respect local (smooth) up-vector:
@@ -210,6 +267,7 @@ void PlayMode::update(float elapsed) {
 				walkmesh->to_world_smooth_normal(player.at) //smoothed up vector at walk location
 			);
 			player.transform->rotation = glm::normalize(adjust * player.transform->rotation);
+			sea_level->rotation = glm::normalize(adjust * sea_level->rotation);
 		}
 
 		/*
@@ -220,6 +278,15 @@ void PlayMode::update(float elapsed) {
 
 		camera->transform->position += move.x * right + move.y * forward;
 		*/
+		// glm::vec3 change_pos = player.transform->position - old_position;
+		// change_pos.z = 0.0f;
+		// player.camera->transform->position += change_pos;
+	}
+
+	{
+		//raise sea level:
+		sea_level->position.x += sea_rising_speed * elapsed;
+		sea_rising_speed *= SPEED_UP_FACTOR;
 	}
 
 	//reset button press counters:
@@ -250,7 +317,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 	scene.draw(*player.camera);
 
-	/* In case you are wondering if your walkmesh is lining up with your scene, try:
+	// In case you are wondering if your walkmesh is lining up with your scene, try:
 	{
 		glDisable(GL_DEPTH_TEST);
 		DrawLines lines(player.camera->make_projection() * glm::mat4(player.camera->transform->make_world_to_local()));
@@ -260,7 +327,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 			lines.draw(walkmesh->vertices[tri.z], walkmesh->vertices[tri.x], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
 		}
 	}
-	*/
+	
 
 	{ //use DrawLines to overlay some text:
 		glDisable(GL_DEPTH_TEST);
@@ -273,12 +340,12 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		));
 
 		constexpr float H = 0.09f;
-		lines.draw_text("Mouse motion looks; WASD moves; escape ungrabs mouse",
+		lines.draw_text("WASD moves",
 			glm::vec3(-aspect + 0.1f * H, -1.0 + 0.1f * H, 0.0),
 			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
 			glm::u8vec4(0x00, 0x00, 0x00, 0x00));
 		float ofs = 2.0f / drawable_size.y;
-		lines.draw_text("Mouse motion looks; WASD moves; escape ungrabs mouse",
+		lines.draw_text("WASD moves",
 			glm::vec3(-aspect + 0.1f * H + ofs, -1.0 + + 0.1f * H + ofs, 0.0),
 			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
 			glm::u8vec4(0xff, 0xff, 0xff, 0x00));

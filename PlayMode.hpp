@@ -36,4 +36,10 @@ struct PlayMode : Mode {
 		//camera is at player's head and will be pitched by mouse up/down motion:
 		Scene::Camera *camera = nullptr;
 	} player;
+
+	Scene::Transform *sea_level = nullptr;
+	float sea_rising_speed = 1.5f;
+	const float SPEED_UP_FACTOR = 1.0002f;
+	bool game_over = false;
+	float cliff_top = 83.0f;
 };
