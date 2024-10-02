@@ -141,13 +141,13 @@ void WalkMesh::walk_in_triangle(WalkPoint const &start, glm::vec3 const &step, W
 		step_coords = to_world_point(start) + step;
 	}
 	
-	glm::vec3 step_w = barycentric_weights(a, b, c, step_coords);
-	glm::vec3 v = step_w - w;
+	glm::vec3 end_w = barycentric_weights(a, b, c, step_coords);
+	glm::vec3 v = end_w - w;
 
 	float t_min = std::numeric_limits<float>::max();
 	int edge = -1;
     for (int i = 0; i < 3; ++i) {
-        if (v[i] != 0) {
+        if (v[i] < 0 && end_w[i] < 0) {
             float t = -w[i] / v[i];  // t when the weight reaches zero
 			
             if (t > 0 && t<t_min) {
@@ -158,11 +158,11 @@ void WalkMesh::walk_in_triangle(WalkPoint const &start, glm::vec3 const &step, W
     }
 	
 	
-	if (t_min > 1.0f) {
+	if (t_min >= 1.0f) {
 		//if no edge is crossed, event will just be taking the whole step:
 		time = 1.0f;
 		end = start;
-		end.weights = w+v;
+		end.weights = end_w;
 		return;
 	}
 	
@@ -224,7 +224,7 @@ bool WalkMesh::cross_edge(WalkPoint const &start, WalkPoint *end_, glm::quat *ro
 
 		return true;
 	} else {
-		
+
 		end = start;
 		rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 		return false;

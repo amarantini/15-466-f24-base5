@@ -11,31 +11,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 
-#include <random>
-
-// GLuint phonebank_meshes_for_lit_color_texture_program = 0;
-// Load< MeshBuffer > phonebank_meshes(LoadTagDefault, []() -> MeshBuffer const * {
-// 	MeshBuffer const *ret = new MeshBuffer(data_path("phone-bank.pnct"));
-// 	phonebank_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
-// 	return ret;
-// });
-
-// Load< Scene > phonebank_scene(LoadTagDefault, []() -> Scene const * {
-// 	return new Scene(data_path("phone-bank.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
-// 		Mesh const &mesh = phonebank_meshes->lookup(mesh_name);
-
-// 		scene.drawables.emplace_back(transform);
-// 		Scene::Drawable &drawable = scene.drawables.back();
-
-// 		drawable.pipeline = lit_color_texture_program_pipeline;
-
-// 		drawable.pipeline.vao = phonebank_meshes_for_lit_color_texture_program;
-// 		drawable.pipeline.type = mesh.type;
-// 		drawable.pipeline.start = mesh.start;
-// 		drawable.pipeline.count = mesh.count;
-
-// 	});
-// });
 
 GLuint flood_meshes_for_lit_color_texture_program = 0;
 Load< MeshBuffer > flood_meshes(LoadTagDefault, []() -> MeshBuffer const * {
@@ -69,24 +44,6 @@ Load< WalkMeshes > flood_walkmeshes(LoadTagDefault, []() -> WalkMeshes const * {
 });
 
 PlayMode::PlayMode() : scene(*flood_scene) {
-	//create a player transform:
-	// scene.transforms.emplace_back();
-	// player.transform = &scene.transforms.back();
-
-	// //create a player camera attached to a child of the player transform:
-	// scene.transforms.emplace_back();
-	// scene.cameras.emplace_back(&scene.transforms.back());
-	// player.camera = &scene.cameras.back();
-	// player.camera->fovy = glm::radians(60.0f);
-	// player.camera->near = 0.01f;
-	// player.camera->transform->parent = player.transform;
-
-	// //player's eyes are 1.8 units above the ground:
-	// player.camera->transform->position = glm::vec3(0.0f, 0.0f, 1.8f);
-
-	// //rotate camera facing direction (-z) to player facing direction (+y):
-	// player.camera->transform->rotation = glm::angleAxis(glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-
 	
 	for (auto &transform : scene.transforms) {
 		if (transform.name == "Player") player.transform = &transform;
@@ -144,30 +101,6 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			return true;
 		}
 	} 
-	// else if (evt.type == SDL_MOUSEBUTTONDOWN) {
-	// 	if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
-	// 		SDL_SetRelativeMouseMode(SDL_TRUE);
-	// 		return true;
-	// 	}
-	// } else if (evt.type == SDL_MOUSEMOTION) {
-	// 	if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
-	// 		glm::vec2 motion = glm::vec2(
-	// 			evt.motion.xrel / float(window_size.y),
-	// 			-evt.motion.yrel / float(window_size.y)
-	// 		);
-	// 		glm::vec3 upDir = walkmesh->to_world_smooth_normal(player.at);
-	// 		player.transform->rotation = glm::angleAxis(-motion.x * player.camera->fovy, upDir) * player.transform->rotation;
-
-	// 		float pitch = glm::pitch(player.camera->transform->rotation);
-	// 		pitch += motion.y * player.camera->fovy;
-	// 		//camera looks down -z (basically at the player's feet) when pitch is at zero.
-	// 		pitch = std::min(pitch, 0.95f * 3.1415926f);
-	// 		pitch = std::max(pitch, 0.05f * 3.1415926f);
-	// 		player.camera->transform->rotation = glm::angleAxis(pitch, glm::vec3(1.0f, 0.0f, 0.0f));
-
-	// 		return true;
-	// 	}
-	// }
 
 	return false;
 }
@@ -175,7 +108,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 void PlayMode::update(float elapsed) {
 	if(game_over) return;
 	//check if player is underwater:
-	if (player.transform->position.x+1.0f < sea_level->position.x) {
+	if (player.transform->position.x+1.0f < sea_level->position.x && glm::distance(player.transform->position, sea_level->position) < 10.0f) {
 		//player is underwater:
 		std::cout << "Player is underwater, game over" << std::endl;
 		std::cout << "Player position: " << player.transform->position.x << std::endl;
@@ -216,7 +149,6 @@ void PlayMode::update(float elapsed) {
 			float time;
 			walkmesh->walk_in_triangle(player.at, remain, &end, &time);
 			player.at = end;
-			std::cout<<"end: "<<end.indices.x<<" "<<end.indices.y<<" "<<end.indices.z<<std::endl;
 			if (time == 1.0f) {
 				//finished within triangle:
 				remain = glm::vec3(0.0f);
@@ -257,7 +189,6 @@ void PlayMode::update(float elapsed) {
 		}
 
 		//update player's position to respect walking:
-		// glm::vec3 old_position = player.transform->position;
 		player.transform->position = walkmesh->to_world_point(player.at);
 
 		{ //update player's rotation to respect local (smooth) up-vector:
@@ -278,9 +209,6 @@ void PlayMode::update(float elapsed) {
 
 		camera->transform->position += move.x * right + move.y * forward;
 		*/
-		// glm::vec3 change_pos = player.transform->position - old_position;
-		// change_pos.z = 0.0f;
-		// player.camera->transform->position += change_pos;
 	}
 
 	{
@@ -319,13 +247,13 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 	// In case you are wondering if your walkmesh is lining up with your scene, try:
 	{
-		glDisable(GL_DEPTH_TEST);
-		DrawLines lines(player.camera->make_projection() * glm::mat4(player.camera->transform->make_world_to_local()));
-		for (auto const &tri : walkmesh->triangles) {
-			lines.draw(walkmesh->vertices[tri.x], walkmesh->vertices[tri.y], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
-			lines.draw(walkmesh->vertices[tri.y], walkmesh->vertices[tri.z], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
-			lines.draw(walkmesh->vertices[tri.z], walkmesh->vertices[tri.x], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
-		}
+		// glDisable(GL_DEPTH_TEST);
+		// DrawLines lines(player.camera->make_projection() * glm::mat4(player.camera->transform->make_world_to_local()));
+		// for (auto const &tri : walkmesh->triangles) {
+		// 	lines.draw(walkmesh->vertices[tri.x], walkmesh->vertices[tri.y], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
+		// 	lines.draw(walkmesh->vertices[tri.y], walkmesh->vertices[tri.z], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
+		// 	lines.draw(walkmesh->vertices[tri.z], walkmesh->vertices[tri.x], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
+		// }
 	}
 	
 

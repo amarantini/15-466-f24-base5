@@ -41,5 +41,5 @@ struct PlayMode : Mode {
 	float sea_rising_speed = 1.5f;
 	const float SPEED_UP_FACTOR = 1.0002f;
 	bool game_over = false;
-	float cliff_top = 83.0f;
+	float cliff_top = 128.0f;
 };
